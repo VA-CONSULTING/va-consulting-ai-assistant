@@ -4,7 +4,8 @@ from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage, AssistantMessage
 from azure.core.credentials import AzureKeyCredential
 from PyPDF2 import PdfReader
-from fpdf import FPDF
+import pytesseract
+from pdf2image import convert_from_bytes
 import os
 import smtplib
 from email.message import EmailMessage
@@ -84,40 +85,51 @@ if user_question:
 st.markdown("### 📄 Or upload a tax-related document (.pdf or .txt)")
 uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
 if uploaded_file:
+    text = ""
     if uploaded_file.type == "application/pdf":
-        pdf = PdfReader(uploaded_file)
-        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        try:
+            pdf = PdfReader(uploaded_file)
+            text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        except:
+            text = ""
+        if not text:
+            st.info("ℹ️ Using OCR fallback to extract text from scanned PDF...")
+            images = convert_from_bytes(uploaded_file.read())
+            text = "\n".join([pytesseract.image_to_string(img) for img in images])
     else:
         text = uploaded_file.read().decode("utf-8")
-    st.write("📑 Extracted text:")
-    st.code(text[:1000])
-    if st.button("Ask AI based on this document"):
-        client = ChatCompletionsClient(
-            endpoint=endpoint,
-            credential=AzureKeyCredential(api_key),
-        )
-        doc_response = client.complete(
-            messages=[
-                SystemMessage(content=prompts[prompt_mode]),
-                UserMessage(content=text[:3000]),
-            ],
-            max_tokens=2048,
-            model=model_name
-        )
-        document_summary = doc_response.choices[0].message.content
-        st.success(document_summary)
 
-        # Follow-up Interaction
-        follow_up = st.text_input("💬 Ask a follow-up question based on this document:")
-        if follow_up:
-            follow_up_response = client.complete(
+    if not text.strip():
+        st.warning("⚠️ No readable text found in the document.")
+    else:
+        st.write("📑 Extracted text:")
+        st.code(text[:1000])
+        if st.button("Ask AI based on this document"):
+            client = ChatCompletionsClient(
+                endpoint=endpoint,
+                credential=AzureKeyCredential(api_key),
+            )
+            doc_response = client.complete(
                 messages=[
                     SystemMessage(content=prompts[prompt_mode]),
-                    UserMessage(content=text[:2000]),
-                    AssistantMessage(content=document_summary),
-                    UserMessage(content=follow_up),
+                    UserMessage(content=text[:3000]),
                 ],
                 max_tokens=2048,
                 model=model_name
             )
-            st.success(follow_up_response.choices[0].message.content)
+            document_summary = doc_response.choices[0].message.content
+            st.success(document_summary)
+
+            follow_up = st.text_input("💬 Ask a follow-up question based on this document:")
+            if follow_up:
+                follow_up_response = client.complete(
+                    messages=[
+                        SystemMessage(content=prompts[prompt_mode]),
+                        UserMessage(content=text[:2000]),
+                        AssistantMessage(content=document_summary),
+                        UserMessage(content=follow_up),
+                    ],
+                    max_tokens=2048,
+                    model=model_name
+                )
+                st.success(follow_up_response.choices[0].message.content)
