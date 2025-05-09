@@ -9,8 +9,6 @@ import pytesseract
 from PIL import Image
 from fpdf import FPDF
 import os
-import smtplib
-from email.message import EmailMessage
 import csv
 import io
 
@@ -24,7 +22,7 @@ with open("prompt_cards.json", "r", encoding="utf-8") as f:
     prompt_data = json.load(f)
 
 prompt_options = [card["title"] for card in prompt_data]
-prompt_descriptions = {card["title"]: card["description"] for card in prompt_data}
+prompt_descriptions = {card["title"]: card["description"] for card in prompt_data]
 prompts = {card["title"]: card["prompt"] for card in prompt_data}
 
 # --- UI Setup ---
@@ -35,7 +33,7 @@ st.markdown("""
 Welcome to your AI-powered tax assistant. Ask any tax question or upload a document, and get smart, fast answers tailored to West African fiscal rules.
 """)
 
-# --- Prompt Selector with Tooltip ---
+# --- Prompt Selector ---
 prompt_mode = st.selectbox("🧠 Choose an Assistant Mode:", prompt_options, help=prompt_descriptions[prompt_options[0]])
 st.caption(f"💡 {prompt_descriptions[prompt_mode]}")
 
@@ -72,7 +70,7 @@ if user_question:
     result = response.choices[0].message.content
     st.success(result)
 
-    # PDF Export Button
+    # PDF Export
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -80,7 +78,6 @@ if user_question:
     pdf_output = pdf.output(dest="S").encode("latin-1")
     st.download_button("⬇️ Download PDF", data=pdf_output, file_name="va_response.pdf", mime="application/pdf")
 
-    # Log lead to CSV
     if user_email:
         try:
             with open("va_leads.csv", mode="a", newline="", encoding="utf-8") as file:
@@ -94,29 +91,30 @@ st.markdown("### 📄 Or upload a tax-related document (.pdf or .txt)")
 uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
 if uploaded_file:
     text = ""
+    uploaded_bytes = uploaded_file.getvalue()
+
     if uploaded_file.type == "application/pdf":
         try:
-            pdf = PdfReader(uploaded_file)
+            pdf = PdfReader(io.BytesIO(uploaded_bytes))
             text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
         except:
             text = ""
         if not text.strip():
-            st.info("ℹ️ Using OCR fallback with PyMuPDF to extract text from scanned PDF...")
-            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            st.info("⚠️ Scanned document detected. Using OCR fallback...")
+            doc = fitz.open(stream=uploaded_bytes, filetype="pdf")
             for page in doc:
                 pix = page.get_pixmap(dpi=300)
                 img = Image.open(io.BytesIO(pix.tobytes()))
                 text += pytesseract.image_to_string(img)
     else:
-        text = uploaded_file.read().decode("utf-8")
+        text = uploaded_bytes.decode("utf-8")
 
     if not text.strip():
         st.warning("⚠️ No readable text found in the document.")
     else:
-        st.write("📑 Extracted text:")
-        st.code(text[:1000])
+        st.write("📑 OCR Result (you can correct below):")
+        corrected_text = st.text_area("✍️ Edit or confirm extracted text:", value=text[:10000], height=300)
 
-        # --- Chunk the text ---
         def chunk_text(full_text, max_len=3000, overlap=500):
             chunks = []
             i = 0
@@ -126,7 +124,7 @@ if uploaded_file:
                 i += max_len - overlap
             return chunks
 
-        text_chunks = chunk_text(text)
+        text_chunks = chunk_text(corrected_text)
 
         if st.button("Ask AI to summarize full document"):
             summaries = []
@@ -142,6 +140,7 @@ if uploaded_file:
                     model=model_name
                 )
                 summaries.append(chunk_response.choices[0].message.content)
+
             final_summary = "\n".join(summaries)
             st.success(final_summary)
 
