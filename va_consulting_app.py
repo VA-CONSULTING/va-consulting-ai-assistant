@@ -104,4 +104,20 @@ if uploaded_file:
             max_tokens=2048,
             model=model_name
         )
-        st.success(doc_response.choices[0].message.content)
+        document_summary = doc_response.choices[0].message.content
+        st.success(document_summary)
+
+        # Follow-up Interaction
+        follow_up = st.text_input("💬 Ask a follow-up question based on this document:")
+        if follow_up:
+            follow_up_response = client.complete(
+                messages=[
+                    SystemMessage(content=prompts[prompt_mode]),
+                    UserMessage(content=text[:2000]),
+                    AssistantMessage(content=document_summary),
+                    UserMessage(content=follow_up),
+                ],
+                max_tokens=2048,
+                model=model_name
+            )
+            st.success(follow_up_response.choices[0].message.content)
