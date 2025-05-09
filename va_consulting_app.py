@@ -31,12 +31,12 @@ st.markdown(""" 💰 Monthly Access: 2,000 XOF To continue using the assistant b
 st.markdown("### 🧾 Ask a tax question") user_question = st.text_input("Enter your question") if user_question: client = ChatCompletionsClient( endpoint=endpoint, credential=AzureKeyCredential(api_key), ) response = client.complete( messages=[ SystemMessage(content=prompts[prompt_mode]), UserMessage(content=user_question), ], max_tokens=2048, model=model_name ) result = response.choices[0].message.content st.success(result)
 
 # PDF Export Button
-if st.download_button("⬇️ Download PDF", data=FPDF().output(dest='S').encode('latin-1'), file_name="va_response.pdf", mime="application/pdf"):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, txt=result)
-    pdf.output("va_response.pdf")
+pdf = FPDF()
+pdf.add_page()
+pdf.set_font("Arial", size=12)
+pdf.multi_cell(0, 10, txt=result)
+pdf_output = pdf.output(dest="S").encode("latin-1")
+st.download_button("⬇️ Download PDF", data=pdf_output, file_name="va_response.pdf", mime="application/pdf")
 
 # Log lead to CSV
 if user_email:
