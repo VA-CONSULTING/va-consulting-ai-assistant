@@ -22,7 +22,7 @@ with open("prompt_cards.json", "r", encoding="utf-8") as f:
     prompt_data = json.load(f)
 
 prompt_options = [card["title"] for card in prompt_data]
-prompt_descriptions = {card["title"]: card["description"] for card in prompt_data]
+prompt_descriptions = {card["title"]: card["description"] for card in prompt_data}
 prompts = {card["title"]: card["prompt"] for card in prompt_data}
 
 # --- UI Setup ---
@@ -51,8 +51,7 @@ st.markdown("""
 💰 **Monthly Access: 2,000 XOF**
 To continue using the assistant beyond the free limit:
 📱 Pay via **Orange Money** to: **+226 76 43 73 58**
----
-""")
+---""")
 
 # --- Chat Input Section ---
 st.markdown("### 🧾 Ask a tax question")
@@ -70,7 +69,6 @@ if user_question:
     result = response.choices[0].message.content
     st.success(result)
 
-    # PDF Export
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
