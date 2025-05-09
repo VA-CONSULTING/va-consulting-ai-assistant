@@ -42,6 +42,50 @@ st.markdown("""
 > "An essential tool for any CFO in West Africa." — Youssouf, Mali
 """)
 
+# --- Chat Input Section ---
+st.markdown("### 🧾 Ask a tax question")
+user_question = st.text_input("Enter your question")
+if user_question:
+    client = ChatCompletionsClient(
+        endpoint=endpoint,
+        credential=AzureKeyCredential(api_key),
+    )
+    response = client.complete(
+        messages=[
+            SystemMessage(content="You are a helpful assistant."),
+            UserMessage(content=user_question),
+        ],
+        max_tokens=2048,
+        model=model_name
+    )
+    st.success(response.choices[0].message.content)
+
+# --- File Upload Section ---
+st.markdown("### 📄 Or upload a tax-related document (.pdf or .txt)")
+uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
+if uploaded_file:
+    if uploaded_file.type == "application/pdf":
+        pdf = PdfReader(uploaded_file)
+        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+    else:
+        text = uploaded_file.read().decode("utf-8")
+    st.write("📑 Extracted text:")
+    st.code(text[:1000])
+    if st.button("Ask AI based on this document"):
+        client = ChatCompletionsClient(
+            endpoint=endpoint,
+            credential=AzureKeyCredential(api_key),
+        )
+        doc_response = client.complete(
+            messages=[
+                SystemMessage(content="You are a helpful tax assistant."),
+                UserMessage(content=text[:3000]),
+            ],
+            max_tokens=2048,
+            model=model_name
+        )
+        st.success(doc_response.choices[0].message.content)
+
 # --- Support Form ---
 with st.expander("📩 Contact Support"):
     contact_name = st.text_input("Your Name", key="contact_name")
