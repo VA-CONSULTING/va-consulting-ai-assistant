@@ -35,6 +35,23 @@ Welcome to your AI-powered tax assistant. Ask any tax question or upload a docum
 prompt_mode = st.selectbox("🧠 Choose an Assistant Mode:", prompt_options, help=prompt_descriptions[prompt_options[0]])
 st.caption(f"💡 {prompt_descriptions[prompt_mode]}")
 
+# --- Lead Capture and Payment ---
+st.markdown("---")
+col1, col2 = st.columns(2)
+with col1:
+    user_name = st.text_input("👤 Your Full Name")
+    user_company = st.text_input("🏢 Company Name")
+with col2:
+    user_email = st.text_input("📧 Your Email")
+    user_paid = st.checkbox("✅ I have paid 2,000 XOF via Orange Money")
+
+st.markdown("""
+💰 **Monthly Access: 2,000 XOF**
+To continue using the assistant beyond the free limit:
+📱 Pay via **Orange Money** to: **+226 76 43 73 58**
+---
+""")
+
 # --- Chat Input Section ---
 st.markdown("### 🧾 Ask a tax question")
 user_question = st.text_input("Enter your question")
@@ -51,7 +68,17 @@ if user_question:
         max_tokens=2048,
         model=model_name
     )
-    st.success(response.choices[0].message.content)
+    result = response.choices[0].message.content
+    st.success(result)
+
+    # Log lead to CSV
+    if user_email:
+        try:
+            with open("va_leads.csv", mode="a", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerow([user_name, user_company, user_email, user_question, result])
+        except Exception as e:
+            st.warning("⚠️ Could not write to va_leads.csv")
 
 # --- File Upload Section ---
 st.markdown("### 📄 Or upload a tax-related document (.pdf or .txt)")
