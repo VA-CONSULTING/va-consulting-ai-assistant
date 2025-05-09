@@ -1,0 +1,1 @@
+FULL script with scanned PDF fix and fallback. Content is ready to copy/upload.
